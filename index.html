@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="一隅的网页记录空间，与 Android 客户端同步。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>一隅 · 网页版</title>
+  <link rel="icon" href="./icon.png">
+  <link rel="stylesheet" href="./app.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-record" viewBox="0 0 24 24"><path d="M5 5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-5 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.8 6.3.8-4.6 4.5 1.1 6.3-5.5-3-5.5 3 1.1-6.3L3 9.6l6.3-.8L12 3Z"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 8a7.5 7.5 0 0 1 12.7-2L20 8m-16 8 1.7 2A7.5 7.5 0 0 0 18.4 16"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6.5 18a4.5 4.5 0 0 1-.8-8.9 6.2 6.2 0 0 1 11.8.7A4.1 4.1 0 0 1 18 18Z"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 3 10l7 3.7L14 21l7-18ZM21 3 10 13.7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6Zm8 0v6h5M9 13h7m-7 4h7"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v15m-6-6 6 6 6-6"/></symbol>
+  </svg>
+
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand">
+        <img src="./icon.png" width="45" height="45" alt="">
+        <div><span class="brand-name">一隅</span><span class="brand-sub">网页版</span></div>
+      </div>
+      <nav class="navigation" aria-label="记录分类">
+        <button type="button" class="nav-item active" data-filter="all" aria-pressed="true">
+          <svg class="icon"><use href="#i-record"/></svg><span>时间线</span>
+        </button>
+        <button type="button" class="nav-item" data-filter="favorites" aria-pressed="false">
+          <svg class="icon"><use href="#i-star"/></svg><span>收藏</span>
+        </button>
+        <button type="button" class="nav-item" data-filter="files" aria-pressed="false">
+          <svg class="icon"><use href="#i-folder"/></svg><span>附件</span>
+        </button>
+      </nav>
+      <button id="account" type="button" class="account">
+        <span class="account-icon"><svg class="icon"><use href="#i-cloud"/></svg></span>
+        <span class="account-label"><strong id="account-title">连接同步</strong><small id="account-detail">Supabase 账号</small></span>
+        <svg class="icon chevron"><use href="#i-chevron"/></svg>
+      </button>
+    </aside>
+
+    <main class="workspace">
+      <header class="top-bar">
+        <div class="top-inner">
+          <div class="page-heading">
+            <img class="mobile-logo" src="./icon.png" width="37" height="37" alt="一隅">
+            <h1 id="page-title">时间线</h1>
+          </div>
+          <div class="tools">
+            <label class="search">
+              <svg class="icon"><use href="#i-search"/></svg>
+              <input id="search" type="search" placeholder="搜索正文、文件名" aria-label="搜索正文、文件名">
+            </label>
+            <button class="sync-button" id="sync" type="button">
+              <svg class="icon"><use href="#i-sync"/></svg><span id="sync-label">连接同步</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="scroll" id="scroll">
+        <section class="stream" aria-label="记录列表">
+          <div class="example" id="example">
+            <svg class="icon"><use href="#i-cloud"/></svg>
+            <p>正在查看示例记录</p>
+            <button type="button" id="connect">连接我的记录 <svg class="icon"><use href="#i-chevron"/></svg></button>
+          </div>
+          <div id="records"></div>
+        </section>
+      </div>
+
+      <div class="bottom">
+        <div class="bottom-inner">
+          <button type="button" class="latest" id="latest" aria-label="回到最新记录" title="回到最新记录" hidden>
+            <svg class="icon"><use href="#i-down"/></svg>
+          </button>
+          <form class="composer" id="composer">
+            <textarea id="draft" rows="1" maxlength="12000" placeholder="写点什么…" aria-label="记录内容"></textarea>
+            <button id="send" class="send" type="submit" title="保存记录" aria-label="保存记录" disabled>
+              <svg class="icon"><use href="#i-send"/></svg>
+            </button>
+          </form>
+          <p class="status"><span id="status-dot" class="status-dot"></span><span id="status" role="status">示例模式</span></p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="connection" class="dialog" aria-labelledby="connection-title">
+    <div class="dialog-head">
+      <span class="dialog-icon"><svg class="icon"><use href="#i-cloud"/></svg></span>
+      <button type="button" class="round-button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <h2 id="connection-title">连接我的记录</h2>
+    <form id="login">
+      <p>填写手机上一隅使用的 Supabase 项目和账号。</p>
+      <label>项目地址<input name="project" type="url" placeholder="https://你的项目.supabase.co" required spellcheck="false" maxlength="512"></label>
+      <label>项目公钥<input name="key" type="text" placeholder="Publishable key 或 anon key" required spellcheck="false" autocomplete="off" maxlength="2048"></label>
+      <label>邮箱<input name="email" type="email" placeholder="name@example.com" required autocomplete="username" maxlength="254"></label>
+      <label>密码<input name="password" type="password" placeholder="输入同步账号的密码" required autocomplete="current-password" maxlength="1024"></label>
+      <p id="login-error" class="feedback" role="alert" hidden></p>
+      <button type="submit" class="primary" id="login-submit">登录并同步</button>
+    </form>
+    <div id="connected" hidden>
+      <p id="connected-email"></p>
+      <p class="account-note" id="connection-info"></p>
+      <button type="button" id="logout" class="secondary">退出登录</button>
+    </div>
+  </dialog>
+
+  <dialog id="actions" class="dialog record-dialog" aria-labelledby="actions-title">
+    <div class="dialog-head"><h2 id="actions-title">记录操作</h2>
+      <button type="button" class="round-button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div id="action-choices" class="action-choices">
+      <button type="button" class="secondary" id="edit">编辑正文</button>
+      <button type="button" class="secondary danger" id="delete">删除记录</button>
+    </div>
+    <form id="edit-form" hidden>
+      <label>记录内容<textarea id="edit-field" rows="5" maxlength="12000"></textarea></label>
+      <button class="primary" type="submit">保存修改</button>
+    </form>
+    <div id="delete-confirm" hidden>
+      <p>删除会同步到使用同一账号的设备。</p>
+      <button class="primary destructive" type="button" id="confirm-delete">确认删除</button>
+    </div>
+  </dialog>
+  <noscript>请启用 JavaScript 后打开一隅。</noscript>
+</body>
+</html>
