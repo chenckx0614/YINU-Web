@@ -8,8 +8,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>一隅 · 网页版</title>
   <link rel="icon" href="./icon.png">
-  <link rel="stylesheet" href="./app.css?v=3">
-  <script type="module" src="./app.js?v=4"></script>
+  <link rel="stylesheet" href="./app.css?v=4">
+  <script type="module" src="./app.js?v=5"></script>
 </head>
 <body>
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -105,13 +105,16 @@
     </div>
     <h2 id="connection-title">连接我的记录</h2>
     <form id="login" novalidate>
-      <p>填写手机上一隅使用的 Supabase 项目和账号。</p>
-      <label>项目地址<input name="project" type="text" inputmode="url" autocapitalize="off" placeholder="项目 URL 或完整 Data API 地址" required spellcheck="false" maxlength="512"></label>
-      <label>项目公钥<input name="key" type="text" placeholder="Publishable key 或 anon key" required spellcheck="false" autocomplete="off" maxlength="2048"></label>
+      <p>使用手机上一隅的同步邮箱和密码。</p>
       <label>邮箱<input name="email" type="email" placeholder="name@example.com" required autocomplete="username" maxlength="254"></label>
       <label>密码<input name="password" type="password" placeholder="输入同步账号的密码" required autocomplete="current-password" maxlength="1024"></label>
       <p id="login-error" class="feedback" role="alert" hidden></p>
       <button type="submit" class="primary" id="login-submit">登录并同步</button>
+      <details id="custom-project" class="custom-project">
+        <summary>使用自定义项目</summary>
+        <label>项目地址<input name="project" type="text" inputmode="url" autocapitalize="off" placeholder="项目 URL 或完整 Data API 地址" spellcheck="false" maxlength="512"></label>
+        <label>项目公钥<input name="key" type="text" placeholder="Publishable key 或 anon key" spellcheck="false" autocomplete="off" maxlength="2048"></label>
+      </details>
     </form>
     <div id="connected" hidden>
       <p id="connected-email"></p>

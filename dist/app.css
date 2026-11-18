@@ -137,6 +137,8 @@ button.attachment:hover .file-name { color: var(--blue); text-decoration: underl
 .dialog p { color: var(--soft); font-size: 13px; margin: 5px 0 14px; }
 .dialog form { display: grid; gap: 11px; }
 .dialog form p { margin: 1px 0; }
+.custom-project summary { color: var(--soft); font-size: 13px; cursor: pointer; }
+.custom-project label { margin-top: 10px; }
 .dialog label { display: grid; gap: 5px; font-size: 13px; color: var(--soft); font-weight: 600; }
 .dialog input, .dialog textarea { min-width: 0; width: 100%; border-radius: 12px; border: 1px solid var(--hair); background: var(--canvas); padding: 10px 12px; font-size: 14px; }
 .dialog textarea { resize: vertical; }

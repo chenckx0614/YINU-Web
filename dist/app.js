@@ -1,12 +1,13 @@
 import {
-  ApiError, SupabaseRecords, acknowledge, compareRecord, loadSession, makeChange,
+  ApiError, SupabaseRecords, acknowledge, compareRecord, defaultProject, loadSession, makeChange,
   queueChange, readConfig, readOutbox, saveSession,
-} from "./sync.js?v=4";
+} from "./sync.js?v=5";
 
 const byId = id => document.getElementById(id);
 const fields = {
   records: byId("records"), search: byId("search"), scroll: byId("scroll"),
   connection: byId("connection"), login: byId("login"), actions: byId("actions"),
+  customProject: byId("custom-project"),
   attachment: byId("attachment-preview"), preview: byId("attachment-content"),
   composer: byId("composer"), draft: byId("draft"), send: byId("send"), status: byId("status"),
 };
@@ -353,6 +354,7 @@ function endConnection() {
   fields.draft.value = "";
   fields.search.value = "";
   fields.login.reset();
+  fields.customProject.open = false;
   byId("edit-field").value = "";
   fields.actions.close();
   updateComposer();
@@ -406,7 +408,7 @@ async function refreshSession(connection) {
   }
 }
 
-async function syncNow() {
+async function syncNow({ quiet = false } = {}) {
   const connection = state.connection;
   if (!connection || state.syncing) return;
   if (!navigator.onLine) {
@@ -414,8 +416,10 @@ async function syncNow() {
     return;
   }
   state.syncing = true;
-  updateConnection();
-  showStatus("正在同步…");
+  if (!quiet) {
+    updateConnection();
+    showStatus("正在同步…");
+  }
   const follow = state.filter === "all" && !fields.search.value.trim() && isNearLatest();
   const startCursor = state.cursor;
   let complete = false;
@@ -437,7 +441,7 @@ async function syncNow() {
     changed = await pull(connection) || changed;
     if (state.connection !== connection) return;
     if (sent.length) await acknowledge(connection.scope, sent);
-    const remaining = await readOutbox(connection.scope);
+    const remaining = sent.length ? await readOutbox(connection.scope) : [...state.pending.values()];
     if (state.connection !== connection) return;
     if (remaining.length !== state.pending.size ||
         remaining.some(row => state.pending.get(row.record_id)?.digest !== row.digest)) {
@@ -455,7 +459,7 @@ async function syncNow() {
     if (state.connection === connection) {
       state.syncing = false;
       updateConnection();
-      if (changed || startCursor !== state.cursor || state.cloud.size === 0) renderRecords({ follow });
+      if (changed || startCursor !== state.cursor) renderRecords({ follow });
       if (complete && state.pending.size) scheduleSync();
     }
   }
@@ -524,7 +528,7 @@ fields.login.addEventListener("submit", async event => {
   submit.disabled = true;
   submit.textContent = "正在登录…";
   try {
-    const config = readConfig(project.value, key.value);
+    const config = fields.customProject.open ? readConfig(project.value, key.value) : defaultProject;
     if (!email.validity.valid) {
       email.focus();
       throw new Error("请输入有效的同步邮箱。");
@@ -613,10 +617,10 @@ document.addEventListener("keydown", event => {
     fields.search.focus();
   }
 });
-window.addEventListener("online", syncNow);
+window.addEventListener("online", () => { if (!document.hidden) syncNow({ quiet: true }); });
 window.addEventListener("offline", () => { if (state.connection) showStatus("当前离线，联网后会自动同步", "warn"); });
-document.addEventListener("visibilitychange", () => { if (!document.hidden) syncNow(); });
-setInterval(() => { if (!document.hidden) syncNow(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) syncNow({ quiet: true }); });
+setInterval(() => { if (!document.hidden) syncNow({ quiet: true }); }, 5000);
 
 const previous = loadSession();
 if (previous) {
