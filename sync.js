@@ -2,6 +2,12 @@ const columns = "revision,record_id,updated_at_ms,digest,payload";
 const sessionKey = "yinu.web.session";
 const encoder = new TextEncoder();
 
+// The publishable key identifies the hosted project. It does not grant account access.
+export const defaultProject = Object.freeze({
+  project: "https://pvwpsgehqqqimjjuuxha.supabase.co",
+  key: "sb_publishable_LF7hRXxG5T6V65eRUrEyRg_beErqNPI",
+});
+
 export class ApiError extends Error {
   constructor(status, code) {
     const message = code === "email_not_confirmed" ? "请先在邮箱完成验证，再登录。"
