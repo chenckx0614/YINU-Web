@@ -39,7 +39,7 @@ export function readConfig(project, key) {
 }
 
 export class SupabaseRecords {
-  constructor(config, fetcher = fetch) {
+  constructor(config, fetcher = globalThis.fetch.bind(globalThis)) {
     this.config = config;
     this.fetcher = fetcher;
   }
