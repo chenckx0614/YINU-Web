@@ -12,6 +12,16 @@ test("the project field accepts the Supabase Data API URL copied from the dashbo
   assert.throws(() => readConfig(`${project}/rest/v1/?select=*`, key), /Data API/);
 });
 
+test("the default fetch runs with the browser global as its receiver", async context => {
+  const config = readConfig("https://example.supabase.co", "sb_publishable_public_only");
+  context.mock.method(globalThis, "fetch", function () {
+    if (this !== globalThis) throw new TypeError("Illegal invocation");
+    return new Response(null, { status: 204 });
+  });
+  const api = new SupabaseRecords(config);
+  assert.equal(await api.request("/auth/v1/health"), null);
+});
+
 test("the browser uses the existing account-bound Android sync API", async () => {
   const config = readConfig("https://example.supabase.co/rest/v1/", "sb_publishable_public_only");
   assert.throws(() => readConfig(config.project, "sb_secret_supersecret"));

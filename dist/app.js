@@ -1,7 +1,7 @@
 import {
   ApiError, SupabaseRecords, acknowledge, compareRecord, loadSession, makeChange,
   queueChange, readConfig, readOutbox, saveSession,
-} from "./sync.js?v=2";
+} from "./sync.js?v=3";
 
 const byId = id => document.getElementById(id);
 const fields = {
