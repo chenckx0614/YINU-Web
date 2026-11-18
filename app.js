@@ -1,12 +1,13 @@
 import {
   ApiError, SupabaseRecords, acknowledge, compareRecord, loadSession, makeChange,
   queueChange, readConfig, readOutbox, saveSession,
-} from "./sync.js?v=3";
+} from "./sync.js?v=4";
 
 const byId = id => document.getElementById(id);
 const fields = {
   records: byId("records"), search: byId("search"), scroll: byId("scroll"),
   connection: byId("connection"), login: byId("login"), actions: byId("actions"),
+  attachment: byId("attachment-preview"), preview: byId("attachment-content"),
   composer: byId("composer"), draft: byId("draft"), send: byId("send"), status: byId("status"),
 };
 const titles = { all: "时间线", favorites: "收藏", files: "附件" };
@@ -20,6 +21,7 @@ const state = {
 };
 let followup;
 let locatedRow;
+let activeAttachment;
 
 function element(tag, className, value) {
   const node = document.createElement(tag);
@@ -83,6 +85,73 @@ function fileSize(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+const rasterTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "image/bmp"]);
+
+function clearAttachment() {
+  for (const url of activeAttachment?.urls ?? []) URL.revokeObjectURL(url);
+  activeAttachment = null;
+  fields.preview.replaceChildren();
+}
+
+async function openAttachment(file) {
+  const connection = state.connection;
+  if (!connection) return;
+  clearAttachment();
+  const preview = { urls: [] };
+  activeAttachment = preview;
+  byId("attachment-title").textContent = file.name;
+  fields.preview.append(element("p", null, "正在读取原文件…"));
+  fields.attachment.showModal();
+  const isCurrent = () => activeAttachment === preview && fields.attachment.open && state.connection === connection;
+  function fileLink(blob, label, openInTab = false) {
+    const url = URL.createObjectURL(blob);
+    preview.urls.push(url);
+    const link = element("a", "attachment-link", label);
+    link.href = url;
+    if (openInTab) {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    } else {
+      link.download = file.name;
+    }
+    return link;
+  }
+  try {
+    await refresh(connection);
+    if (!isCurrent()) return;
+    const bytes = await connection.api.downloadAttachment(connection.session, file.id);
+    if (!isCurrent()) return;
+    const content = document.createDocumentFragment();
+    if (rasterTypes.has(file.mime)) {
+      const url = URL.createObjectURL(bytes.slice(0, bytes.size, file.mime));
+      preview.urls.push(url);
+      const image = element("img", "attachment-image");
+      image.alt = file.name;
+      image.src = url;
+      image.addEventListener("error", () => image.replaceWith(element("p", null, "图片预览失败，可以下载原文件。")));
+      content.append(image);
+    } else if (/\.pdf$/i.test(file.name) || file.mime === "application/pdf") {
+      if (await bytes.slice(0, 5).text() === "%PDF-" && isCurrent()) {
+        content.append(fileLink(bytes.slice(0, bytes.size, "application/pdf"), "在新标签页预览 PDF", true));
+      }
+    } else if (/\.docx$/i.test(file.name) || file.mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      try {
+        const { readDocxText } = await import("./docx.js");
+        const text = await readDocxText(bytes);
+        if (text.trim()) content.append(element("p", "attachment-word", text));
+        else content.append(element("p", null, "此 Word 文档没有可预览的正文。"));
+      } catch {
+        content.append(element("p", null, "无法预览此 Word 文档，可以下载原文件。"));
+      }
+    }
+    if (!isCurrent()) return;
+    content.append(fileLink(bytes.slice(0, bytes.size, "application/octet-stream"), "下载原文件"));
+    fields.preview.replaceChildren(content);
+  } catch (error) {
+    if (isCurrent()) fields.preview.replaceChildren(element("p", "feedback", error.message || "读取附件失败，请稍后重试。"));
+  }
+}
+
 function textLink(text) {
   if (typeof text !== "string" || !/^https?:\/\/\S+$/i.test(text)) return null;
   try {
@@ -127,11 +196,15 @@ function renderRow(row, rows) {
     bubble.append(body);
   }
   for (const file of data.attachments ?? []) {
-    const entry = element("div", "attachment");
+    const entry = element(state.connection ? "button" : "div", "attachment");
+    if (state.connection) {
+      entry.type = "button";
+      entry.addEventListener("click", () => openAttachment(file));
+    }
     const graphic = element("span", "file-icon");
     graphic.append(icon("file"));
     const labels = element("span");
-    labels.append(element("span", "file-name", file.name), element("span", "file-size", `${fileSize(file.size)} · 仅附件信息`));
+    labels.append(element("span", "file-name", file.name), element("span", "file-size", fileSize(file.size)));
     entry.append(graphic, labels);
     bubble.append(entry);
   }
@@ -268,6 +341,8 @@ function beginConnection(config, session) {
 }
 
 function endConnection() {
+  fields.attachment.close();
+  clearAttachment();
   state.connection = null;
   state.cloud.clear();
   state.pending.clear();
@@ -308,7 +383,12 @@ async function pull(connection) {
   return changed;
 }
 
-async function refresh(connection) {
+function refresh(connection) {
+  if (!connection.refreshing) connection.refreshing = refreshSession(connection).finally(() => { connection.refreshing = null; });
+  return connection.refreshing;
+}
+
+async function refreshSession(connection) {
   if (connection.session.expiresAt - Date.now() >= 60000) return;
   try {
     const fresh = await connection.api.refresh(connection.session);
@@ -473,6 +553,9 @@ for (const button of document.querySelectorAll("[data-filter]")) {
 for (const button of document.querySelectorAll("[data-close]")) {
   button.addEventListener("click", () => button.closest("dialog").close());
 }
+fields.attachment.addEventListener("close", () => {
+  if (!fields.attachment.open) clearAttachment();
+});
 byId("account").addEventListener("click", openConnection);
 byId("connect").addEventListener("click", openConnection);
 byId("sync").addEventListener("click", () => state.connection ? syncNow() : openConnection());

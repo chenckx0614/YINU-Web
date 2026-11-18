@@ -86,6 +86,14 @@ h1 { font-size: 31px; line-height: 1.21; }
 .body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.7; }
 .file-only { background: var(--paper); border: 1px solid var(--hair); min-width: min(260px, 57vw); }
 .attachment { display: flex; align-items: center; gap: 10px; min-width: 0; }
+button.attachment { width: 100%; border: 0; border-radius: 10px; background: transparent; color: inherit; text-align: start; padding: 0; }
+button.attachment:hover .file-name { color: var(--blue); text-decoration: underline; }
+.dialog.attachment-dialog { width: min(680px, calc(100% - 24px)); }
+.attachment-dialog h2 { font-size: 20px; overflow-wrap: anywhere; }
+.attachment-content { display: grid; gap: 10px; }
+.attachment-image { display: block; width: auto; max-width: 100%; max-height: 60vh; margin: auto; object-fit: contain; }
+.attachment-content .attachment-word { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.attachment-link { justify-self: start; text-decoration: underline; }
 .attachment + .attachment, .body + .attachment { margin-top: 9px; }
 .file-icon { display: grid; place-items: center; width: 34px; height: 36px; border-radius: 10px; flex: none; background: var(--blue-pale); color: var(--blue); }
 .file-icon .icon { width: 19px; height: 19px; }
