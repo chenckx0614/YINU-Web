@@ -92,6 +92,11 @@ export class SupabaseRecords {
     return validateSession(await this.request("/auth/v1/token?grant_type=password", { body: { email, password } }));
   }
 
+  async register(email, password) {
+    const data = await this.request("/auth/v1/signup", { body: { email, password } });
+    return data?.access_token ? validateSession(data) : null;
+  }
+
   async refresh(session) {
     const fresh = validateSession(await this.request("/auth/v1/token?grant_type=refresh_token",
       { body: { refresh_token: session.refresh } }));
@@ -110,6 +115,20 @@ export class SupabaseRecords {
 
   async downloadAttachment(session, id) {
     return this.request(await attachmentPath(session.id, id), { access: session.access, binary: true });
+  }
+
+  async uploadAttachment(session, id, file) {
+    const path = (await attachmentPath(session.id, id)).replace("/object/authenticated/", "/object/");
+    const response = await this.fetcher(this.config.project + path, {
+      method: "POST", redirect: "error", signal: AbortSignal.timeout(90000),
+      headers: { apikey: this.config.key, Authorization: `Bearer ${session.access}`,
+        "Content-Type": "application/octet-stream", "Cache-Control": "no-store", "x-upsert": "false" },
+      body: file,
+    });
+    if (response.ok || response.status === 409) return;
+    const data = await response.json().catch(() => null);
+    if (String(data?.statusCode) === "409" || data?.code === "KeyAlreadyExists") return;
+    throw new ApiError(response.status, data?.code);
   }
 
   push(access, changes) {
@@ -185,10 +204,19 @@ let databasePromise;
 function localDb() {
   if (!databasePromise) {
     databasePromise = new Promise((resolve, reject) => {
-      const open = indexedDB.open("yinu-web", 1);
-      open.onupgradeneeded = () => open.result.createObjectStore("outbox", { keyPath: ["scope", "record_id"] }).createIndex("scope", "scope");
-      open.onsuccess = () => resolve(open.result);
+      const open = indexedDB.open("yinu-web", 2);
+      open.onupgradeneeded = event => {
+        if (event.oldVersion < 1) open.result.createObjectStore("outbox", { keyPath: ["scope", "record_id"] }).createIndex("scope", "scope");
+        for (const name of ["records", "trash", "files"]) {
+          open.result.createObjectStore(name, { keyPath: ["scope", "id"] }).createIndex("scope", "scope");
+        }
+      };
+      open.onsuccess = () => {
+        open.result.onversionchange = () => { open.result.close(); databasePromise = null; };
+        resolve(open.result);
+      };
       open.onerror = () => reject(open.error);
+      open.onblocked = () => reject(new Error("请关闭仍打开旧版一隅的标签页，然后刷新。"));
     }).catch(error => { databasePromise = null; throw error; });
   }
   return databasePromise;
@@ -199,6 +227,62 @@ export async function readOutbox(scope) {
   return new Promise((resolve, reject) => {
     const query = db.transaction("outbox").objectStore("outbox").index("scope").getAll(scope);
     query.onsuccess = () => resolve(query.result.filter(validRecord));
+    query.onerror = () => reject(query.error);
+  });
+}
+
+export async function readWorkspace(name, scope, id) {
+  const db = await localDb();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction(name).objectStore(name);
+    const request = id === undefined ? store.index("scope").getAll(scope) : store.get([scope, id]);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function writeWorkspace(scope, { rows = [], cloud = false, files = [], trash = [], removed = [], dropFiles = [] } = {}) {
+  const db = await localDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["records", "outbox", "files", "trash"], "readwrite");
+    const records = tx.objectStore("records");
+    const outbox = tx.objectStore("outbox");
+    const fileStore = tx.objectStore("files");
+    const trashStore = tx.objectStore("trash");
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(tx.error || new Error("写入已取消。"));
+    const destination = cloud ? outbox : records;
+    for (const row of rows) {
+      const key = [scope, row.record_id];
+      const query = destination.get(key);
+      query.onsuccess = () => {
+        if (!query.result || compareRecord(query.result, row) < 0 ||
+            (!cloud && row.revision > (query.result.revision ?? 0))) {
+          destination.put({ ...row, id: row.record_id, scope });
+        }
+      };
+    }
+    for (const file of files) {
+      fileStore.put({ ...file, scope });
+    }
+    for (const id of dropFiles) fileStore.delete([scope, id]);
+    for (const row of trash) trashStore.put({ ...row, id: row.record_id, scope });
+    for (const id of removed) trashStore.delete([scope, id]);
+  });
+}
+
+export async function pendingAttachmentFiles(scope, limit, active) {
+  const db = await localDb();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction("files").objectStore("files");
+    const query = store.index("scope").openCursor(scope);
+    const files = [];
+    query.onsuccess = () => {
+      const cursor = query.result;
+      if (!cursor || files.length === limit) { resolve(files); return; }
+      if (cursor.value.pending && active.has(cursor.value.id)) files.push(cursor.value);
+      cursor.continue();
+    };
     query.onerror = () => reject(query.error);
   });
 }

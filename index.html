@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="description" content="一隅的网页记录空间，与 Android 客户端同步。">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data: blob:; media-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>一隅 · 网页版</title>
   <link rel="icon" href="./icon.png">
-  <link rel="stylesheet" href="./app.css?v=4">
-  <script type="module" src="./app.js?v=5"></script>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./app.css?v=5">
+  <script type="module" src="./app.js?v=6"></script>
 </head>
 <body>
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -25,6 +26,9 @@
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v15m-6-6 6 6 6-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><circle cx="12" cy="12" r="3"/></symbol>
   </svg>
 
   <div class="shell">
@@ -66,15 +70,29 @@
             <button class="sync-button" id="sync" type="button">
               <svg class="icon"><use href="#i-sync"/></svg><span id="sync-label">连接同步</span>
             </button>
+            <button type="button" id="settings-open" class="round-button" aria-label="设置"><svg class="icon"><use href="#i-settings"/></svg></button>
           </div>
         </div>
+        <div class="record-filters">
+          <label>日期 <input type="date" id="filter-date" aria-label="按日期筛选"></label>
+          <select id="filter-kind" aria-label="记录类型">
+            <option value="">所有类型</option><option value="image">图片</option><option value="doc">文档</option>
+            <option value="video">视频</option><option value="audio">语音与音乐</option>
+            <option value="archive">压缩包</option><option value="apk">安装包</option>
+            <option value="link">链接</option><option value="text">文字</option>
+          </select>
+          <select id="filter-group" aria-label="收藏分组" hidden></select>
+          <button type="button" class="text-button" id="clear-filters" hidden>清除</button>
+          <button type="button" class="text-button" id="selection-start">多选</button>
+        </div>
+        <div class="pin-bar" id="pin-bar" hidden></div>
       </header>
 
       <div class="scroll" id="scroll">
         <section class="stream" aria-label="记录列表">
           <div class="example" id="example">
             <svg class="icon"><use href="#i-cloud"/></svg>
-            <p>正在查看示例记录</p>
+            <p>当前记录保存在此浏览器</p>
             <button type="button" id="connect">连接我的记录 <svg class="icon"><use href="#i-chevron"/></svg></button>
           </div>
           <div id="records"></div>
@@ -86,13 +104,26 @@
           <button type="button" class="latest" id="latest" aria-label="回到最新记录" title="回到最新记录" hidden>
             <svg class="icon"><use href="#i-down"/></svg>
           </button>
+          <div class="selection-bar" id="selection-bar" hidden>
+            <strong id="selection-count"></strong>
+            <button class="text-button" id="selection-all" type="button">全选</button>
+            <button class="text-button" id="selection-merge" type="button">合并</button>
+            <button class="text-button" id="selection-export" type="button">导出长图</button>
+            <button class="text-button" id="selection-ai" type="button">AI</button>
+            <button class="text-button danger" id="selection-delete" type="button">删除</button>
+            <button class="text-button" id="selection-exit" type="button">取消</button>
+          </div>
+          <div class="draft-context" id="draft-context" hidden></div>
           <form class="composer" id="composer">
+            <input type="file" id="pick-files" multiple hidden>
+            <button type="button" id="add-files" class="round-button" aria-label="添加图片或文件"><svg class="icon"><use href="#i-plus"/></svg></button>
+            <button type="button" id="record-voice" class="round-button" aria-label="录音"><svg class="icon"><use href="#i-mic"/></svg></button>
             <textarea id="draft" rows="1" maxlength="12000" placeholder="写点什么…" aria-label="记录内容"></textarea>
             <button id="send" class="send" type="submit" title="保存记录" aria-label="保存记录" disabled>
               <svg class="icon"><use href="#i-send"/></svg>
             </button>
           </form>
-          <p class="status"><span id="status-dot" class="status-dot"></span><span id="status" role="status">示例模式</span></p>
+          <p class="status"><span id="status-dot" class="status-dot"></span><span id="status" role="status">本机记录</span><button type="button" class="text-button" id="undo-delete" hidden>撤销删除</button></p>
         </div>
       </div>
     </main>
@@ -109,7 +140,10 @@
       <label>邮箱<input name="email" type="email" placeholder="name@example.com" required autocomplete="username" maxlength="254"></label>
       <label>密码<input name="password" type="password" placeholder="输入同步账号的密码" required autocomplete="current-password" maxlength="1024"></label>
       <p id="login-error" class="feedback" role="alert" hidden></p>
-      <button type="submit" class="primary" id="login-submit">登录并同步</button>
+      <div class="login-actions">
+        <button type="submit" class="primary" id="login-submit">登录并同步</button>
+        <button type="submit" class="secondary" id="register-submit">注册账号</button>
+      </div>
       <details id="custom-project" class="custom-project">
         <summary>使用自定义项目</summary>
         <label>项目地址<input name="project" type="text" inputmode="url" autocapitalize="off" placeholder="项目 URL 或完整 Data API 地址" spellcheck="false" maxlength="512"></label>
@@ -137,16 +171,45 @@
     </div>
     <div id="action-choices" class="action-choices">
       <button type="button" class="secondary" id="edit">编辑正文</button>
+      <button type="button" class="secondary" id="quote">引用</button>
+      <button type="button" class="secondary" id="relation">关联记录</button>
+      <button type="button" class="secondary" id="pin">置顶</button>
+      <button type="button" class="secondary" id="favorite-group">收藏分组</button>
+      <button type="button" class="secondary" id="copy-record">复制正文</button>
+      <button type="button" class="secondary" id="share-record">分享</button>
+      <button type="button" class="secondary" id="remind-record">提醒我</button>
+      <button type="button" class="secondary" id="record-info">记录详情</button>
+      <button type="button" class="secondary" id="select-record">多选</button>
       <button type="button" class="secondary danger" id="delete">删除记录</button>
     </div>
     <form id="edit-form" hidden>
       <label>记录内容<textarea id="edit-field" rows="5" maxlength="12000"></textarea></label>
       <button class="primary" type="submit">保存修改</button>
     </form>
+    <form id="action-form" hidden></form>
     <div id="delete-confirm" hidden>
-      <p>删除会同步到使用同一账号的设备。</p>
+      <p id="delete-detail">删除的记录可以在本机的「最近删除」里恢复。</p>
       <button class="primary destructive" type="button" id="confirm-delete">确认删除</button>
     </div>
+  </dialog>
+  <dialog id="settings" class="dialog" aria-labelledby="settings-title">
+    <div class="dialog-head"><h2 id="settings-title">设置</h2>
+      <button type="button" class="round-button" data-close aria-label="关闭设置"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="action-choices">
+      <label>外观<select id="theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
+      <button type="button" class="secondary" id="trash-open">最近删除</button>
+      <button type="button" class="secondary" id="reminders-open">记录提醒</button>
+      <button type="button" class="secondary" id="backup-open">备份与恢复</button>
+      <button type="button" class="secondary" id="ai-open">AI 服务</button>
+      <button type="button" class="secondary" id="about-open">关于一隅</button>
+    </div>
+  </dialog>
+  <dialog id="utility" class="dialog attachment-dialog" aria-labelledby="utility-title">
+    <div class="dialog-head"><h2 id="utility-title"></h2>
+      <button type="button" class="round-button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div id="utility-content"></div>
   </dialog>
   <noscript>请启用 JavaScript 后打开一隅。</noscript>
 </body>
