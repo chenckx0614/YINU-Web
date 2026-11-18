@@ -41,6 +41,20 @@ test("download uses the account's authorized Storage path and returns original b
   await assert.rejects(oldRecord.downloadAttachment(session, id), /上传附件到云端/);
 });
 
+test("a repeated upload uses the private bucket without overwriting an original", async () => {
+  const config = readConfig("https://example.supabase.co", "sb_publishable_public_only");
+  const session = { id: "account", access: "session-token" };
+  const file = new Blob(["original"]);
+  const api = new SupabaseRecords(config, (url, options) => {
+    assert.match(url, /\/storage\/v1\/object\/yinu-attachments\/account\/[a-f0-9]{64}$/);
+    assert.equal(options.headers["x-upsert"], "false");
+    assert.equal(options.headers.Authorization, "Bearer session-token");
+    assert.equal(options.body, file);
+    return Response.json({ statusCode: "409" }, { status: 400 });
+  });
+  await api.uploadAttachment(session, "attachment", file);
+});
+
 test("the browser uses the existing account-bound Android sync API", async () => {
   const config = readConfig("https://example.supabase.co/rest/v1/", "sb_publishable_public_only");
   assert.throws(() => readConfig(config.project, "sb_secret_supersecret"));
