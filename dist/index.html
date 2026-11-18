@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="description" content="一隅的网页记录空间，与 Android 客户端同步。">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>一隅 · 网页版</title>
   <link rel="icon" href="./icon.png">
-  <link rel="stylesheet" href="./app.css?v=2">
-  <script type="module" src="./app.js?v=3"></script>
+  <link rel="stylesheet" href="./app.css?v=3">
+  <script type="module" src="./app.js?v=4"></script>
 </head>
 <body>
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -118,6 +118,14 @@
       <p class="account-note" id="connection-info"></p>
       <button type="button" id="logout" class="secondary">退出登录</button>
     </div>
+  </dialog>
+
+  <dialog id="attachment-preview" class="dialog attachment-dialog" aria-labelledby="attachment-title">
+    <div class="dialog-head">
+      <h2 id="attachment-title"></h2>
+      <button type="button" class="round-button" data-close aria-label="关闭附件预览"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div id="attachment-content" class="attachment-content" aria-live="polite"></div>
   </dialog>
 
   <dialog id="actions" class="dialog record-dialog" aria-labelledby="actions-title">

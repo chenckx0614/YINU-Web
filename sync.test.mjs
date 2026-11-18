@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { compareRecord, makeChange, readConfig, SupabaseRecords, validRecord } from "./dist/sync.js";
 
@@ -20,6 +21,24 @@ test("the default fetch runs with the browser global as its receiver", async con
   });
   const api = new SupabaseRecords(config);
   assert.equal(await api.request("/auth/v1/health"), null);
+});
+
+test("download uses the account's authorized Storage path and returns original bytes", async () => {
+  const config = readConfig("https://example.supabase.co", "sb_publishable_public_only");
+  const session = { id: "my-account", access: "my-access-token" };
+  const id = "备份附件/1";
+  const key = createHash("sha256").update(id, "utf8").digest("hex");
+  const bytes = new Uint8Array([0, 128, 255]);
+  const api = new SupabaseRecords(config, (url, options) => {
+    assert.equal(url, `${config.project}/storage/v1/object/authenticated/yinu-attachments/${session.id}/${key}`);
+    assert.equal(options.method, "GET");
+    assert.equal(options.headers.Authorization, "Bearer my-access-token");
+    return new Response(bytes);
+  });
+  const result = await api.downloadAttachment(session, id);
+  assert.deepEqual(new Uint8Array(await result.arrayBuffer()), bytes);
+  const oldRecord = new SupabaseRecords(config, () => Response.json({ statusCode: "404" }, { status: 400 }));
+  await assert.rejects(oldRecord.downloadAttachment(session, id), /上传附件到云端/);
 });
 
 test("the browser uses the existing account-bound Android sync API", async () => {

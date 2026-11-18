@@ -38,13 +38,19 @@ export function readConfig(project, key) {
   return { project: url.origin, key };
 }
 
+export async function attachmentPath(accountId, attachmentId) {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(attachmentId)));
+  const key = Array.from(hash, byte => byte.toString(16).padStart(2, "0")).join("");
+  return `/storage/v1/object/authenticated/yinu-attachments/${encodeURIComponent(accountId)}/${key}`;
+}
+
 export class SupabaseRecords {
   constructor(config, fetcher = globalThis.fetch.bind(globalThis)) {
     this.config = config;
     this.fetcher = fetcher;
   }
 
-  async request(path, { access, body } = {}) {
+  async request(path, { access, body, binary = false } = {}) {
     const headers = { apikey: this.config.key, Accept: "application/json" };
     if (access) headers.Authorization = `Bearer ${access}`;
     if (body != null) headers["Content-Type"] = "application/json";
@@ -60,8 +66,12 @@ export class SupabaseRecords {
     }
     if (!response.ok) {
       const result = await response.json().catch(() => null);
+      if (binary && (response.status === 404 || String(result?.statusCode) === "404")) {
+        throw new Error("云端找不到这个原文件。请在保存原件的手机上打开「跨设备同步」，选择「上传附件到云端」。");
+      }
       throw new ApiError(response.status, result?.error_code);
     }
+    if (binary) return response.blob();
     if (response.status === 204) return null;
     const text = await response.text();
     if (!text.trim()) return null;
@@ -90,6 +100,10 @@ export class SupabaseRecords {
       throw new Error("云端返回的记录格式不完整。");
     }
     return rows;
+  }
+
+  async downloadAttachment(session, id) {
+    return this.request(await attachmentPath(session.id, id), { access: session.access, binary: true });
   }
 
   push(access, changes) {
