@@ -9,7 +9,7 @@
   <title>一隅 · 网页版</title>
   <link rel="icon" href="./icon.png">
   <link rel="stylesheet" href="./app.css">
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=2"></script>
 </head>
 <body>
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -104,9 +104,9 @@
       <button type="button" class="round-button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button>
     </div>
     <h2 id="connection-title">连接我的记录</h2>
-    <form id="login">
+    <form id="login" novalidate>
       <p>填写手机上一隅使用的 Supabase 项目和账号。</p>
-      <label>项目地址<input name="project" type="url" placeholder="https://你的项目.supabase.co" required spellcheck="false" maxlength="512"></label>
+      <label>项目地址<input name="project" type="text" inputmode="url" autocapitalize="off" placeholder="项目 URL 或完整 Data API 地址" required spellcheck="false" maxlength="512"></label>
       <label>项目公钥<input name="key" type="text" placeholder="Publishable key 或 anon key" required spellcheck="false" autocomplete="off" maxlength="2048"></label>
       <label>邮箱<input name="email" type="email" placeholder="name@example.com" required autocomplete="username" maxlength="254"></label>
       <label>密码<input name="password" type="password" placeholder="输入同步账号的密码" required autocomplete="current-password" maxlength="1024"></label>

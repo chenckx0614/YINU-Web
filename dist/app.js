@@ -1,7 +1,7 @@
 import {
   ApiError, SupabaseRecords, acknowledge, compareRecord, loadSession, makeChange,
   queueChange, readConfig, readOutbox, saveSession,
-} from "./sync.js";
+} from "./sync.js?v=2";
 
 const byId = id => document.getElementById(id);
 const fields = {
@@ -439,14 +439,22 @@ fields.login.addEventListener("submit", async event => {
   event.preventDefault();
   const submit = byId("login-submit");
   if (submit.disabled) return;
-  const values = new FormData(fields.login);
+  const { project, key, email, password } = fields.login.elements;
   byId("login-error").hidden = true;
   submit.disabled = true;
   submit.textContent = "正在登录…";
   try {
-    const config = readConfig(values.get("project"), values.get("key"));
-    const session = await new SupabaseRecords(config).login(values.get("email").trim(), values.get("password"));
-    fields.login.elements.password.value = "";
+    const config = readConfig(project.value, key.value);
+    if (!email.validity.valid) {
+      email.focus();
+      throw new Error("请输入有效的同步邮箱。");
+    }
+    if (!password.value) {
+      password.focus();
+      throw new Error("请输入同步账号的密码。");
+    }
+    const session = await new SupabaseRecords(config).login(email.value.trim(), password.value);
+    password.value = "";
     beginConnection(config, session);
     fields.connection.close();
     await syncNow();

@@ -2,8 +2,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { compareRecord, makeChange, readConfig, SupabaseRecords, validRecord } from "./dist/sync.js";
 
+test("the project field accepts the Supabase Data API URL copied from the dashboard", () => {
+  const project = "https://example.supabase.co";
+  const key = "sb_publishable_public_only";
+  for (const suffix of ["", "/", "/rest/v1", "/rest/v1/"]) {
+    assert.deepEqual(readConfig(` ${project}${suffix} \n`, key), { project, key });
+  }
+  assert.throws(() => readConfig(`${project}/rest/v1/records`, key), /Data API/);
+  assert.throws(() => readConfig(`${project}/rest/v1/?select=*`, key), /Data API/);
+});
+
 test("the browser uses the existing account-bound Android sync API", async () => {
-  const config = readConfig("https://example.supabase.co/", "sb_publishable_public_only");
+  const config = readConfig("https://example.supabase.co/rest/v1/", "sb_publishable_public_only");
   assert.throws(() => readConfig(config.project, "sb_secret_supersecret"));
   const note = await makeChange("same-id", 100, { created: 50, content: "网页写入", attachments: [] });
   const deleted = await makeChange("same-id", 101, { ...note.payload, deleted: true });
@@ -24,6 +34,7 @@ test("the browser uses the existing account-bound Android sync API", async () =>
     return Response.json([{ ...deleted, revision: 6 }]);
   });
   const session = await api.login("test@example.org", "test-password");
+  assert.equal(calls[0][0].pathname, "/auth/v1/token");
   await api.push(session.access, [deleted]);
   assert.deepEqual(JSON.parse(calls[1][1].body), { changes: [deleted] });
   assert.equal(calls[1][0].pathname, "/rest/v1/rpc/yinu_sync_push");
