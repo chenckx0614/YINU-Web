@@ -15,14 +15,16 @@ export class ApiError extends Error {
 }
 
 export function readConfig(project, key) {
+  const projectError = "请填入 Supabase 项目的 HTTPS 地址或完整的 Data API 地址。";
   let url;
   try {
     url = new URL(project.trim());
   } catch {
-    throw new Error("请输入 Supabase 项目的 HTTPS 地址。");
+    throw new Error(projectError);
   }
-  if (url.protocol !== "https:" || url.pathname !== "/" || url.username || url.password || url.hash || url.search) {
-    throw new Error("请输入 Supabase 项目的 HTTPS 地址。");
+  const validPath = ["/", "/rest/v1", "/rest/v1/"].includes(url.pathname);
+  if (url.protocol !== "https:" || !validPath || url.username || url.password || url.hash || url.search) {
+    throw new Error(projectError);
   }
   key = key.trim();
   let isPublic = /^sb_publishable_[A-Za-z0-9_-]{10,300}$/.test(key);
